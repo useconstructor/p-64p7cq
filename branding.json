@@ -1,0 +1,13 @@
+{
+  "primaryColor": "#F5F5F5",
+  "secondaryColor": "#FFFFFF",
+  "backgroundColor": "#F5F5F5",
+  "textColor": "#222222",
+  "accentColor": "#FF8C42",
+  "fontHeading": "Inter",
+  "fontBody": "Segoe UI",
+  "borderRadius": "0.25rem",
+  "logoText": "Recetas de Cocina",
+  "logoImageUrl": "https://vabacntbfcwhgkjqajcw.supabase.co/storage/v1/object/public/screenshots/projects/P-64P7CQ/logo.png",
+  "tone": "minimal"
+}
