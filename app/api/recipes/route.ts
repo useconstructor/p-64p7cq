@@ -16,26 +16,37 @@ const EXAMPLE_RECIPES = [
 ];
 
 export async function GET() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS recipes (
+  // Create tables atomically
+  await db.batch([
+    `CREATE TABLE IF NOT EXISTS recipes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       ingredients TEXT NOT NULL,
       instructions TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
+    )`,
+    `CREATE TABLE IF NOT EXISTS _init_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )`
+  ], 'write');
 
-  const { rows } = await db.execute('SELECT COUNT(*) as count FROM recipes');
-  const count = (rows[0] as { count: number }).count;
-
-  if (count === 0) {
-    for (const recipe of EXAMPLE_RECIPES) {
-      await db.execute({
-        sql: 'INSERT INTO recipes (name, ingredients, instructions) VALUES (?, ?, ?)',
-        args: [recipe.name, recipe.ingredients, recipe.instructions],
-      });
+  // Atomic idempotent initialization using transaction
+  const tx = await db.transaction('write');
+  try {
+    const { rows } = await tx.execute("SELECT value FROM _init_meta WHERE key = 'recipes_seeded'");
+    if (rows.length === 0) {
+      for (const recipe of EXAMPLE_RECIPES) {
+        await tx.execute({
+          sql: 'INSERT INTO recipes (name, ingredients, instructions) VALUES (?, ?, ?)',
+          args: [recipe.name, recipe.ingredients, recipe.instructions],
+        });
+      }
+      await tx.execute("INSERT INTO _init_meta (key, value) VALUES ('recipes_seeded', '1')");
     }
+    await tx.commit();
+  } catch {
+    await tx.rollback();
   }
 
   const result = await db.execute('SELECT * FROM recipes ORDER BY created_at DESC');
