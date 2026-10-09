@@ -35,8 +35,9 @@ export async function GET() {
   const tx = await db.transaction('write');
   try {
     const { rows } = await tx.execute("SELECT value FROM _init_meta WHERE key = 'recipes_seeded'");
+    const existing = await tx.execute('SELECT COUNT(*) AS count FROM recipes');
     if (rows.length === 0) {
-      for (const recipe of EXAMPLE_RECIPES) {
+      if (Number(existing.rows[0].count) === 0) for (const recipe of EXAMPLE_RECIPES) {
         await tx.execute({
           sql: 'INSERT INTO recipes (name, ingredients, instructions) VALUES (?, ?, ?)',
           args: [recipe.name, recipe.ingredients, recipe.instructions],
@@ -45,8 +46,11 @@ export async function GET() {
       await tx.execute("INSERT INTO _init_meta (key, value) VALUES ('recipes_seeded', '1')");
     }
     await tx.commit();
-  } catch {
+  } catch (error) {
     await tx.rollback();
+    throw error;
+  } finally {
+    tx.close();
   }
 
   const result = await db.execute('SELECT * FROM recipes ORDER BY created_at DESC');
